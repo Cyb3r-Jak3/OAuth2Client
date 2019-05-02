@@ -77,16 +77,16 @@ class CredentialManager(object):
             else:
                 raise
 
-    def generate_authorize_url(self, redirect_uri, state):
+    def generate_authorize_url(self, redirect_uri, state, **extra_parameters):
         parameters = dict(client_id=self.service_information.client_id,
                           redirect_uri=redirect_uri,
                           response_type='code',
                           scope=' '.join(self.service_information.scopes),
-                          state=state)
+                          state=state, **extra_parameters)
         return '%s?%s' % (self.service_information.authorize_service,
                           '&'.join('%s=%s' % (k, quote(v, safe='~()*!.\'')) for k, v in parameters.items()))
 
-    def init_authorize_code_process(self, redirect_uri, state=''):
+    def init_authorize_code_process(self, redirect_uri, state='', **extra_parameters):
         uri_parsed = urlparse(redirect_uri)
         if uri_parsed.scheme == 'https':
             raise NotImplementedError("Redirect uri cannot be secured")
@@ -98,7 +98,7 @@ class CredentialManager(object):
         if uri_parsed.hostname != 'localhost' and uri_parsed.hostname != '127.0.0.1':
             _logger.warn('Remember to put %s in your hosts config to point to loop back address' % uri_parsed.hostname)
         self.authorization_code_context = AuthorizationContext(state, port, uri_parsed.hostname)
-        return self.generate_authorize_url(redirect_uri, state)
+        return self.generate_authorize_url(redirect_uri, state, **extra_parameters)
 
     def wait_and_terminate_authorize_code_process(self, timeout=None):
         if self.authorization_code_context is None:
@@ -125,8 +125,8 @@ class CredentialManager(object):
                 stop_http_server(self.authorization_code_context.server)
                 self.authorization_code_context = None
 
-    def init_with_authorize_code(self, redirect_uri, code):
-        self._token_request(self._grant_code_request(code, redirect_uri), True)
+    def init_with_authorize_code(self, redirect_uri, code, **extra_parameters):
+        self._token_request(self._grant_code_request(code, redirect_uri, **extra_parameters), True)
 
     def init_with_user_credentials(self, login, password):
         self._token_request(self._grant_password_request(login, password), True)
@@ -139,11 +139,12 @@ class CredentialManager(object):
         if self.refresh_token is None:
             self.refresh_token = refresh_token
 
-    def _grant_code_request(self, code, redirect_uri):
+    def _grant_code_request(self, code, redirect_uri, **extra_parameters):
         return dict(grant_type='authorization_code',
                     code=code,
                     scope=' '.join(self.service_information.scopes),
-                    redirect_uri=redirect_uri)
+                    redirect_uri=redirect_uri,
+                    **extra_parameters)
 
     def _grant_password_request(self, login, password):
         return dict(grant_type='password',
