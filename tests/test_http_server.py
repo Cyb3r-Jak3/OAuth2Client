@@ -49,7 +49,7 @@ class TestServer(unittest.TestCase):
         self.assertTrue(response.text.startswith('Response received'))
         obj_response = self._extract_response(response.text)
         self.assertIsNotNone(obj_response)
-        self.assertEqual(obj_response.get('toto', None), 'titi')
+        self.assertEqual(obj_response.get('toto'), 'titi')
 
     def test_callback_parameter(self):
         TestServer.CALLBACK_CONTAINER.clear()

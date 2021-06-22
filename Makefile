@@ -1,7 +1,7 @@
 PHONY: test lint build check-dist
 
 test:
-	coverage run --source .\oauth2_client\ -m unittest -vv
+	coverage run --source .\oauth2_client\ -m unittest discover -vv
 
 lint:
 	black --check oauth2_client

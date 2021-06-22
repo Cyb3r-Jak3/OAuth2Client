@@ -66,7 +66,7 @@ def start_http_server(
             params_received = read_request_parameters(self.path)
             response = (
                 "Response received"
-                f"{json.dumps(params_received) if _logger.level == logging.DEBUG else ''}."
+                f"{json.dumps(params_received)}."
                 "Result was transmitted to the original thread. You can close this window."
             )
             self.send_response(HTTPStatus.OK, "OK")
