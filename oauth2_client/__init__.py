@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-OAuth2 client is python client that handles oauth logging in make request making in accordance with rfc6749
+OAuth2 client is python client that handles oauth logging in
+make request making in accordance with rfc6749
 """
 from oauth2_client.credentials_manager import (
     ServiceInformation,

@@ -6,7 +6,6 @@ test:
 lint:
 	black --check oauth2_client
 	pylint oauth2_client
-	flake8 --statistics --show-source --count oauth2_client
 	bandit -r oauth2_client
 
 build:

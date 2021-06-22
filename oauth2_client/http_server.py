@@ -1,3 +1,4 @@
+"""Local HTTP server used to handle responses"""
 import json
 import logging
 import threading
@@ -19,18 +20,18 @@ class _ReuseAddressTcpServer(TCPServer):
 
 
 def read_request_parameters(path: str) -> dict:
-    """
-    Read the request parameters
+    """Read the request parameters
 
     :param path: URL path to read
     :type path: str
     :return: Dict of parameters
     :rtype: dict
     """
+
     params_received = {}
     idx = path.find("?")
     if 0 <= idx < (len(path) - 1):
-        for params in path[idx + 1:].split("&"):
+        for params in path[idx + 1 :].split("&"):
             param_split = params.split("=")
             if len(param_split) == 2:
                 params_received[param_split[0]] = unquote(param_split[1])
@@ -48,14 +49,24 @@ def start_http_server(
     :param host:
     :type host:
     :param callback:
-    :return:
+    :return: HTTP server to handle local request
+    :rtype: TCPServer
     """
+
     class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            _logger.debug("GET - %s" % self.path)
+        """
+        Handle HTTP request
+        """
+
+        def do_GET(self):  # pylint: disable=invalid-name
+            """
+            Handles the GET request
+            """
+            _logger.debug("GET - %s", self.path)
             params_received = read_request_parameters(self.path)
             response = (
-                f"Response received {json.dumps(params_received) if _logger.level == logging.DEBUG else ''}."
+                "Response received"
+                f"{json.dumps(params_received) if _logger.level == logging.DEBUG else ''}."
                 "Result was transmitted to the original thread. You can close this window."
             )
             self.send_response(HTTPStatus.OK, "OK")
@@ -85,5 +96,11 @@ def start_http_server(
 
 
 def stop_http_server(httpd: TCPServer):
+    """
+    Stop the local server
+    :param httpd: The local server
+    :type httpd: TCPServer
+    """
+
     _logger.debug("stop_http_server - stopping server")
     httpd.shutdown()

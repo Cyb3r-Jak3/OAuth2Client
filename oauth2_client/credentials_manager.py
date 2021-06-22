@@ -1,11 +1,14 @@
+"""Manage the login process"""
 import base64
 import logging
 from http import HTTPStatus
 from threading import Event
-from typing import Optional, Any, Callable, List
+from typing import Optional, Any, List
 from urllib.parse import quote, urlparse
 
 import requests
+from urllib3 import disable_warnings
+from urllib3.exceptions import InsecureRequestWarning
 
 from oauth2_client.http_server import start_http_server, stop_http_server
 
@@ -13,6 +16,10 @@ _logger = logging.getLogger(__name__)
 
 
 class OAuthError(Exception):
+    """
+    Exception if an error occurs during the OAuth process
+    """
+
     def __init__(
         self,
         status_code: int,
@@ -32,7 +39,14 @@ class OAuthError(Exception):
         )
 
 
+# pylint: disable=too-few-public-methods
+
+
 class ServiceInformation:
+    """
+    Information for an OAuth application
+    """
+
     def __init__(
         self,
         authorize_service_url: Optional[str],
@@ -41,7 +55,7 @@ class ServiceInformation:
         client_secret: str,
         scopes: List[str],
         verify: bool = True,
-    ):
+    ):  # pylint: disable=too-many-arguments
         """
         Service Information contain all the information for a OAuth 2 Client
 
@@ -73,6 +87,7 @@ class AuthorizeResponseCallback(dict):
     """
     AuthorizeResponseCallback contains the OAuth call back information
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.response = Event()
@@ -89,7 +104,8 @@ class AuthorizeResponseCallback(dict):
 
     def register_parameters(self, parameters: dict):
         """
-        This is call once there has been an OAuth response. It updates the class with the response information
+        This is call once there has been an OAuth response.
+        It updates the class with the response information
 
         :param parameters: Response parameters
         :type parameters: dict
@@ -99,19 +115,33 @@ class AuthorizeResponseCallback(dict):
 
 
 class AuthorizationContext:
+    """
+    AuthorizationContext when opening the local server
+    """
+
     def __init__(self, state: str, port: int, host: str):
         self.state = state
         self.results = AuthorizeResponseCallback()
         self.server = start_http_server(port, host, self.results.register_parameters)
 
 
+# pylint: enable=too-few-public-methods
+
+
 class CredentialManager:
+    """
+    CredentialManager handles the login process and
+    will start a local http server to complete that authentication
+    """
+
     def __init__(
-        self, service_information: ServiceInformation, proxies: Optional[dict] = None, save: bool = True
+        self,
+        service_information: ServiceInformation,
+        proxies: Optional[dict] = None,
+        save: bool = True,
     ):
         """
-        CredentialManager handles the login process and will start a local http server to complete that authentication
-
+        Handle logging in and making authenticated requests
         :param service_information: Service information for the OAuth application
         :type service_information: ServiceInformation
         :param proxies: Proxies to pass the request session
@@ -126,14 +156,7 @@ class CredentialManager:
         self._session = None
         self.save = save
         if not service_information.verify:
-            from requests.packages.urllib3.exceptions import InsecureRequestWarning
-            import warnings
-
-            warnings.filterwarnings(
-                "ignore",
-                "Unverified HTTPS request is being made.*",
-                InsecureRequestWarning,
-            )
+            disable_warnings(InsecureRequestWarning)
 
     @staticmethod
     def _handle_bad_response(response: requests.Response):
@@ -153,8 +176,9 @@ class CredentialManager:
         except BaseException as ex:
             if isinstance(ex, OAuthError):
                 _logger.exception(
-                    "_handle_bad_response - error while getting error as json - %s - %s"
-                    % (type(ex), str(ex))
+                    "_handle_bad_response - error while getting error as json - %s - %s",
+                    type(ex),
+                    str(ex),
                 )
                 raise OAuthError(
                     response.status_code, "unknown_error", response.text
@@ -208,8 +232,8 @@ class CredentialManager:
             port = int(uri_parsed.port)
         if uri_parsed.hostname not in ["localhost", "127.0.0.1"]:
             _logger.warning(
-                "Remember to put %s in your hosts config to point to loop back address"
-                % uri_parsed.hostname
+                "Remember to put %s in your hosts config to point to loop back address",
+                uri_parsed.hostname,
             )
         self.authorization_code_context = AuthorizationContext(
             state, port, uri_parsed.hostname
@@ -379,7 +403,7 @@ class CredentialManager:
         """
         headers = {
             "grant_type": request_parameters["grant_type"],
-            "Authorization": f"Basic {self.service_information.auth}"
+            "Authorization": f"Basic {self.service_information.auth}",
         }
         response = requests.post(
             self.service_information.token_service,
@@ -426,7 +450,7 @@ class CredentialManager:
             else None
         )
         if authorization_header is not None:
-            return authorization_header[len("Bearer "):]
+            return authorization_header[len("Bearer ") :]
         return None
 
     @_access_token.setter
@@ -439,7 +463,9 @@ class CredentialManager:
         if len(access_token) > 0:
             self._session.headers["Authorization"] = f"Bearer {access_token}"
 
-    def get(self, url: str, params: Optional[dict] = None, **kwargs) -> requests.Response:
+    def get(
+        self, url: str, params: Optional[dict] = None, **kwargs
+    ) -> requests.Response:
         """
         Authenticated GET request. Operates a request.get() method
 
@@ -455,7 +481,11 @@ class CredentialManager:
         return self._bearer_request(method="GET", url=url, **kwargs)
 
     def post(
-        self, url: str, data: Optional[Any] = None, json: Optional[dict] = None, **kwargs: Optional[Any]
+        self,
+        url: str,
+        data: Optional[Any] = None,
+        json: Optional[dict] = None,
+        **kwargs: Optional[Any],
     ) -> requests.Response:
         """
         Authenticated POST request. Operates a request.post() method
@@ -536,9 +566,7 @@ class CredentialManager:
             raise OAuthError(HTTPStatus.UNAUTHORIZED, "no_token", "no token provided")
         return self._session
 
-    def _bearer_request(
-        self, method: str, url: str, **kwargs
-    ) -> requests.Response:
+    def _bearer_request(self, method: str, url: str, **kwargs) -> requests.Response:
         """
         Make a request with the authorization token set
 
@@ -553,7 +581,7 @@ class CredentialManager:
         headers = kwargs.get("headers", None)
         if headers is None:
             kwargs["headers"] = {}
-        _logger.debug("_bearer_request on %s - %s" % (method, url))
+        _logger.debug("_bearer_request on %s - %s", method, url)
         response = self._session.request(method=method, url=url, **kwargs)
         if self.refresh_token is not None and self._is_token_expired(response):
             self._refresh_token()
