@@ -22,11 +22,13 @@ api_server_port = 9092
 redirect_server_port = 9099
 
 service_information = ServiceInformation(
-    authorize_service='http://localhost:%d/oauth/authorize' % authorize_server_port,
-    token_service='http://localhost:%d/oauth/token' % token_server_port,
+    authorize_service_url='http://localhost:%d/oauth/authorize' % authorize_server_port,
+    token_service_url='http://localhost:%d/oauth/token' % token_server_port,
     client_id='client_id_test',
     client_secret='client_secret_test',
-    scopes=['scope1', 'scope2'])
+    scopes=['scope1', 'scope2'],
+    verify=False
+)
 
 
 basic_auth = 'Basic Y2xpZW50X2lkX3Rlc3Q6Y2xpZW50X3NlY3JldF90ZXN0'
@@ -45,7 +47,7 @@ class FakeOAuthHandler(BaseHTTPRequestHandler):
             authorize_parsed = urlparse(service_information.authorize_service)
             if self.path == authorize_parsed.path \
                     or self.path.index('%s?' % authorize_parsed.path) != 0:
-                self.send_response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+                self.send_response(HTTPStatus.NOT_FOUND, 'Not Found')
             else:
                 params_received = read_request_parameters(self.path)
                 self._check_get_parameters(params_received)
@@ -53,11 +55,11 @@ class FakeOAuthHandler(BaseHTTPRequestHandler):
                 state = params_received.get('state', '')
                 if redirect_uri is not None:
                     _logger.debug('FakeOAuthHandler - redirect - %s', redirect_uri)
-                    self.send_response(HTTPStatus.SEE_OTHER.value, 'Redirect')
+                    self.send_response(HTTPStatus.SEE_OTHER, 'Redirect')
                     self.send_header("Location", '%s?code=%s&state=%s' % (redirect_uri, FakeOAuthHandler.CODE, state))
                 else:
-                    self.send_response(HTTPStatus.BAD_REQUEST.value, 'Bad Request')
-            self.send_header("Content-Length", 0)
+                    self.send_response(HTTPStatus.BAD_REQUEST, 'Bad Request')
+            self.send_header("Content-Length", "0")
             self.end_headers()
         finally:
             self.wfile.flush()
@@ -67,11 +69,11 @@ class FakeOAuthHandler(BaseHTTPRequestHandler):
             ctype, pdict = parse_header(self.headers['content-type'])
             if ctype == 'application/x-www-form-urlencoded':
                 length = int(self.headers['content-length'])
-                parameters = parse_qs(self.rfile.read(length), keep_blank_values=1)
+                parameters = parse_qs(self.rfile.read(length), keep_blank_values=True)
                 self._handle_post(parameters)
             else:
                 _logger.debug('FakeOAuthHandler - invalid content type')
-                self.send_response(HTTPStatus.BAD_REQUEST.value, 'Invalid content type')
+                self.send_response(HTTPStatus.BAD_REQUEST, 'Invalid content type')
         finally:
             self.wfile.flush()
 
@@ -79,13 +81,13 @@ class FakeOAuthHandler(BaseHTTPRequestHandler):
         pass
 
     def _handle_post(self, parameters):
-        self.send_response(HTTPStatus.OK.value, 'OK')
+        self.send_response(HTTPStatus.OK, 'OK')
         self.send_header("Content-type", 'text/plain')
-        self.send_header("Content-Length", 0)
+        self.send_header("Content-Length", "0")
         self.end_headers()
 
 
-class TestServer(object):
+class TestServer:
     def __init__(self, port, handler_class):
         self.httpd = _ReuseAddressTcpServer('', port, handler_class)
 
@@ -116,10 +118,10 @@ class TestManager(unittest.TestCase):
         with TestServer(authorize_server_port, CheckAuthorizeHandler):
             manager = None
             try:
-                manager = CredentialManager(service_information, proxies=dict(http=''))
+                manager = CredentialManager(service_information, proxies={"http": ''})
                 url = manager.init_authorize_code_process('http://localhost:%d' % redirect_server_port, 'state_test')
                 self.assertIsNotNone(url)
-                requests.get(url, proxies=dict(http=''))
+                requests.get(url, proxies={"http": ''})
                 code = manager.wait_and_terminate_authorize_code_process()
                 manager = None
                 self.assertEqual(code, FakeOAuthHandler.CODE)
@@ -152,7 +154,7 @@ class TestManager(unittest.TestCase):
                     manager.wait_and_terminate_authorize_code_process(0.1)
 
     def test_get_token_with_code(self):
-        redirect_uri = 'http://somewhere-over-the.rainbow'
+        redirect_uri = 'https://somewhere-over-the.rainbow'
 
         def call_request(manager):
             manager.init_with_authorize_code(redirect_uri, FakeOAuthHandler.CODE)
@@ -221,15 +223,15 @@ class TestManager(unittest.TestCase):
             def _handle_request(self):
                 try:
                     test_case.assertEqual(self.headers.get('Authorization', None), 'Bearer %s' % access_token)
-                    self.send_response(HTTPStatus.OK.value, 'OK')
+                    self.send_response(HTTPStatus.OK, 'OK')
                     self.send_header("Content-type", 'text/plain')
-                    self.send_header("Content-Length", 0)
+                    self.send_header("Content-Length", "0")
                     self.end_headers()
                 except AssertionError as ex:
                     body = str(ex.message)
-                    self.send_response(HTTPStatus.UNAUTHORIZED.value, 'Unauthorized')
+                    self.send_response(HTTPStatus.UNAUTHORIZED, 'Unauthorized')
                     self.send_header("Content-type", 'text/plain')
-                    self.send_header("Content-Length", len(body))
+                    self.send_header("Content-Length", str(len(body)))
                     self.end_headers()
                     self.wfile.write(bytes(body, 'UTF-8'))
 
@@ -267,16 +269,16 @@ class TestManager(unittest.TestCase):
                     if not no_refresh_token:
                         response_body['refresh_token'] = refresh_token
                     response = json.dumps(response_body)
-                    self.send_response(HTTPStatus.OK.value, 'OK')
+                    self.send_response(HTTPStatus.OK, 'OK')
                     self.send_header("Content-type", 'text/plain')
-                    self.send_header("Content-Length", len(response))
+                    self.send_header("Content-Length", str(len(response)))
                     self.end_headers()
                     self.wfile.write(bytes(response, 'UTF-8'))
                 except AssertionError as error:
                     _logger.error('error - %s', error)
-                    self.send_response(HTTPStatus.BAD_REQUEST.value, 'BAD_REQUEST')
+                    self.send_response(HTTPStatus.BAD_REQUEST, 'BAD_REQUEST')
                     self.send_header("Content-type", 'text/plain')
-                    self.send_header("Content-Length", 0)
+                    self.send_header("Content-Length", "0")
                     self.end_headers()
 
         with TestServer(token_server_port, CheckGetTokenWithCode):

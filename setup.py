@@ -1,36 +1,19 @@
-import os
-import shutil
-
 from setuptools import setup, find_packages
-
-src_dir = 'main'
+from oauth2_client import __version__
 package_directory = 'oauth2_client'
 package_name = 'oauth2-client'
-
-__version__ = None
-version_file = '%s/%s/__init__.py' % (src_dir, package_directory)
-with open(version_file, 'r') as f:
-    for line in f.readlines():
-        if line.find('__version__') >= 0:
-            exec(line)
-
-if __version__ is None:
-    raise AssertionError('Failed to load version from %s' % version_file)
-
-
-def purge_sub_dir(path):
-    shutil.rmtree(os.path.join(os.path.dirname(__file__), path))
 
 
 setup(name=package_name,
       version=__version__,
       zip_safe=False,
-      packages=find_packages(where=src_dir),
+      packages=find_packages(where=package_directory),
       author='Benjamin Einaudi',
       author_email='antechrestos@gmail.com',
       description='A client library for OAuth2',
       long_description=open('README.rst').read(),
-      url='http://github.com/antechrestos/OAuth2Client',
+      long_description_content_type="text/x-rst",
+      url='https://github.com/antechrestos/OAuth2Client',
       classifiers=[
           "Programming Language :: Python",
           "Natural Language :: English",
@@ -38,8 +21,10 @@ setup(name=package_name,
           "Programming Language :: Python :: 3",
           "Programming Language :: Python :: 3.6",
           "Programming Language :: Python :: 3.7",
+          "Programming Language :: Python :: 3.8",
+          "Programming Language :: Python :: 3.9",
           "Topic :: Communications",
       ],
-      package_dir={package_directory: '%s/%s' % (src_dir, package_directory)},
+      package_dir={package_directory: package_directory},
       install_requires=[requirement.rstrip(' \r\n') for requirement in open('requirements.txt').readlines()],
       )
