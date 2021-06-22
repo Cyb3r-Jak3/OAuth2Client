@@ -16,7 +16,7 @@ class TestServer(unittest.TestCase):
 
     SERVER = None
 
-    CALLBACK_CONTAINER = dict()
+    CALLBACK_CONTAINER = {}
 
     @classmethod
     def setUpClass(cls):
@@ -28,12 +28,12 @@ class TestServer(unittest.TestCase):
             stop_http_server(TestServer.SERVER)
 
     def test_start(self):
-        response = requests.get('http://127.0.0.1:%d' % TestServer.PORT, proxies=dict(http=''))
+        response = requests.get('http://127.0.0.1:%d' % TestServer.PORT)
         self.assertIsNotNone(response)
         self.assertEqual(200, response.status_code)
 
     def test_response_no_parameter(self):
-        response = requests.get('http://127.0.0.1:%d' % TestServer.PORT, proxies=dict(http=''))
+        response = requests.get('http://127.0.0.1:%d' % TestServer.PORT)
         self.assertIsNotNone(response)
         self.assertEqual(200, response.status_code)
         self.assertEqual('text/plain', response.headers['Content-Type'])
@@ -41,7 +41,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual({}, self._extract_response(response.text))
 
     def test_response_parameter(self):
-        response = requests.get('http://127.0.0.1:%d?toto=titi' % TestServer.PORT, proxies=dict(http=''))
+        response = requests.get('http://127.0.0.1:%d?toto=titi' % TestServer.PORT)
         self.assertIsNotNone(response)
         self.assertEqual(200, response.status_code)
         self.assertEqual('text/plain', response.headers['Content-Type'])
@@ -53,11 +53,12 @@ class TestServer(unittest.TestCase):
 
     def test_callback_parameter(self):
         TestServer.CALLBACK_CONTAINER.clear()
-        response = requests.get('http://127.0.0.1:%d?toto=titi' % TestServer.PORT, proxies=dict(http=''))
+        response = requests.get('http://127.0.0.1:%d?toto=titi' % TestServer.PORT)
         self.assertIsNotNone(response)
         self.assertEqual(200, response.status_code)
         self.assertEqual('text/plain', response.headers['Content-Type'])
-        self.assertEqual(TestServer.CALLBACK_CONTAINER.get('toto', None), 'titi')
+        print(TestServer.CALLBACK_CONTAINER)
+        self.assertEqual(TestServer.CALLBACK_CONTAINER.get('toto'), 'titi')
 
     @staticmethod
     def _extract_response(text):
