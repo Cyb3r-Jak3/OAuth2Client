@@ -12,6 +12,14 @@ Welcome to oauth2-client's documentation!
 
    oauth2_client.rst
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Examples
+
+   examples/authorization.rst
+   examples/user_cred.rst
+   examples/client_creds.rst
+   examples/refresh_token.rst
 
 
 Indices and tables
