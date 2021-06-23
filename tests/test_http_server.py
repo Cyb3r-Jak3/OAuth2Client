@@ -41,7 +41,7 @@ class TestServer(unittest.TestCase):
         self.assertEqual({}, self._extract_response(response.text))
 
     def test_response_parameter(self):
-        response = requests.get('http://127.0.0.1:%d?toto=titi' % TestServer.PORT)
+        response = requests.get(f'http://127.0.0.1:{TestServer.PORT}?toto=titi')
         self.assertIsNotNone(response)
         self.assertEqual(200, response.status_code)
         self.assertEqual('text/plain', response.headers['Content-Type'])
@@ -53,7 +53,7 @@ class TestServer(unittest.TestCase):
 
     def test_callback_parameter(self):
         TestServer.CALLBACK_CONTAINER.clear()
-        response = requests.get('http://127.0.0.1:%d?toto=titi' % TestServer.PORT)
+        response = requests.get(f'http://127.0.0.1:{TestServer.PORT}?toto=titi', proxies=dict(http=''))
         self.assertIsNotNone(response)
         self.assertEqual(200, response.status_code)
         self.assertEqual('text/plain', response.headers['Content-Type'])

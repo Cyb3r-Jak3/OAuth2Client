@@ -121,7 +121,7 @@ class TestManager(unittest.TestCase):
                 manager = CredentialManager(service_information, proxies={"http": ''})
                 url = manager.init_authorize_code_process('http://localhost:%d' % redirect_server_port, 'state_test')
                 self.assertIsNotNone(url)
-                requests.get(url, proxies={"http": ''})
+                requests.get(url)
                 code = manager.wait_and_terminate_authorize_code_process()
                 manager = None
                 self.assertEqual(code, FakeOAuthHandler.CODE)
@@ -132,7 +132,7 @@ class TestManager(unittest.TestCase):
     def test_authorize_ko(self):
         test_case = self
 
-        class CheckAuthorizeHandlerbadState(FakeOAuthHandler):
+        class CheckAuthorizeHandlerBadState(FakeOAuthHandler):
             def _check_get_parameters(self, parameters):
                 test_case.assertEqual(parameters.get('redirect_uri', None),
                                       'http://localhost:%d' % redirect_server_port)
@@ -140,7 +140,7 @@ class TestManager(unittest.TestCase):
                 # send bad state
                 parameters['state'] = 'other_state'
 
-        with TestServer(authorize_server_port, CheckAuthorizeHandlerbadState):
+        with TestServer(authorize_server_port, CheckAuthorizeHandlerBadState):
             manager = None
             try:
                 manager = CredentialManager(service_information, proxies=dict(http=''))
@@ -159,17 +159,27 @@ class TestManager(unittest.TestCase):
         def call_request(manager):
             manager.init_with_authorize_code(redirect_uri, FakeOAuthHandler.CODE)
 
-        self._test_get_token(call_request,
-                             dict(redirect_uri=redirect_uri, grant_type='authorization_code',
-                                  code=FakeOAuthHandler.CODE, scope=' '.join(service_information.scopes)))
+        self._test_get_token(
+            call_request,
+            {
+                "redirect_uri": redirect_uri,
+                "grant_type": 'authorization_code',
+                "code": FakeOAuthHandler.CODE,
+                "scope": ' '.join(service_information.scopes)
+            }
+        )
 
     def test_get_token_with_credentials(self):
         def call_request(manager):
             manager.init_with_client_credentials()
 
-        self._test_get_token(call_request, dict(grant_type='client_credentials',
-                                                scope=' '.join(service_information.scopes)),
-                             no_refresh_token=True)
+        self._test_get_token(
+            call_request,
+            {
+                "grant_type": 'client_credentials',
+                "scope": ' '.join(service_information.scopes)
+            },
+            no_refresh_token=True)
 
     def test_get_token_with_password(self):
         username = 'the username'
@@ -178,10 +188,15 @@ class TestManager(unittest.TestCase):
         def call_request(manager):
             manager.init_with_user_credentials(username, password)
 
-        self._test_get_token(call_request, dict(grant_type='password',
-                                                scope=' '.join(service_information.scopes),
-                                                username=username,
-                                                password=password))
+        self._test_get_token(
+            call_request,
+            {
+                "grant_type": 'password',
+                "scope": ' '.join(service_information.scopes),
+                "username": username,
+                "password": password
+            }
+        )
 
     def test_get_token_with_token(self):
         refresh_token = 'the refresh token'
@@ -189,9 +204,14 @@ class TestManager(unittest.TestCase):
         def call_request(manager):
             manager.init_with_token(refresh_token)
 
-        self._test_get_token(call_request, dict(grant_type='refresh_token',
-                                                scope=' '.join(service_information.scopes),
-                                                refresh_token=refresh_token))
+        self._test_get_token(
+            call_request,
+            {
+                "grant_type": 'refresh_token',
+                "scope": ' '.join(service_information.scopes),
+                "refresh_token": refresh_token
+            }
+        )
 
     def test_bearer_requests(self):
         access_token = 'the access token'
